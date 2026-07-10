@@ -1,6 +1,6 @@
 # Mistvale
 
-A BDS-based Bedrock server software with full vanilla compatibility and a familiar JavaScript/TypeScript plugin API inspired by Mojang's Script API.
+A BDS-based Bedrock server software with full vanilla compatibility and a familiar JavaScript/TypeScript plugin API inspired by Mojang's Script API. We are not affiliated in any way with Microsoft or Mojang AB.
 
 ## Features
 
