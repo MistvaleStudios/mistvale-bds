@@ -4,11 +4,11 @@ A BDS-based Bedrock server software with full vanilla compatibility and a famili
 
 ## Features
 
-- ⚡ High performance
-- 📦 JavaScript & TypeScript plugins
+- 📦 JavaScript & TypeScript plugin support
 - 🎮 Full vanilla compatibility
-- 🛠 Familiar Script API design
-- 🔌 Easy plugin development
+- 📖 Script API-inspired developer experience
+- 🔄 Hot plugin loading
+- 🔌 Extensible architecture
 
 ## Getting Started
 
