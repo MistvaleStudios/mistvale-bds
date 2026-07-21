@@ -1,8 +1,6 @@
 // Must come first, so the base64 helpers exist before authentication runs
 import "./core/polyfill";
 
-import { PlayerListAction } from "@serenityjs/protocol";
-
 import { Logger, LogLevel } from "./core/logger";
 import { DEFAULT_CONFIG, loadConfig } from "./core/config";
 import { Player } from "./entity/player";
@@ -158,7 +156,7 @@ class MistvaleServer {
     session.player = null;
 
     // Remove the departed player from every remaining player's list
-    const removal = player.createPlayerListPacket(PlayerListAction.Remove);
+    const removal = player.createPlayerListRemovePacket();
     for (const other of this.players.values()) other.send(removal);
 
     this.logger.info(`§u${player.username}§r left the server.`);

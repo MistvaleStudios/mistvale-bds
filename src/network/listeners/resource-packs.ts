@@ -81,6 +81,34 @@ class ResourcePackListener extends PacketListener {
 
   // Sends the payload that puts the client into the world
   private startGame(player: Player, session: Session): void {
+    const start = ResourcePackListener.createStartGamePacket(player);
+
+    // The client requires a voxel shape registry, even an empty one
+    const voxels = new VoxelShapesPacket();
+    voxels.shapes = [];
+    voxels.names = [];
+
+    // No custom entities are registered, so the identifier list is empty
+    const actors = new AvailableActorIdentifiersPacket();
+    actors.data = new CompoundTag();
+    actors.data.add(new ListTag<CompoundTag>([], "idlist"));
+
+    // Tells the client it may begin loading the world
+    const status = new PlayStatusPacket();
+    status.status = PlayStatus.PlayerSpawn;
+
+    session.stage = SessionStage.Spawning;
+    session.sendImmediate(
+      voxels,
+      start,
+      status,
+      actors,
+      Registries.getItemRegistry()
+    );
+  }
+
+  // Builds the start game payload describing the world to the client
+  public static createStartGamePacket(player: Player): StartGamePacket {
     const { level, realm } = player;
 
     const start = new StartGamePacket();
@@ -218,28 +246,7 @@ class ResourcePackListener extends PacketListener {
       ownerId: player.username
     };
 
-    // The client requires a voxel shape registry, even an empty one
-    const voxels = new VoxelShapesPacket();
-    voxels.shapes = [];
-    voxels.names = [];
-
-    // No custom entities are registered, so the identifier list is empty
-    const actors = new AvailableActorIdentifiersPacket();
-    actors.data = new CompoundTag();
-    actors.data.add(new ListTag<CompoundTag>([], "idlist"));
-
-    // Tells the client it may begin loading the world
-    const status = new PlayStatusPacket();
-    status.status = PlayStatus.PlayerSpawn;
-
-    session.stage = SessionStage.Spawning;
-    session.sendImmediate(
-      voxels,
-      start,
-      status,
-      actors,
-      Registries.getItemRegistry()
-    );
+    return start;
   }
 }
 

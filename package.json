@@ -22,9 +22,10 @@
     "build": "npm run build:vendor && tsc -p tsconfig.json",
     "build:vendor": "npm run build -w @serenityjs/nbt && npm run build -w @serenityjs/raknet && npm run build -w @serenityjs/protocol && npm run build -w @serenityjs/data",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run test:polyfill && npm run test:auth && npm run test:smoke && npm run verify:hashes",
+    "test": "npm run test:polyfill && npm run test:auth && npm run test:packets && npm run test:smoke && npm run verify:hashes",
     "test:polyfill": "tsx scripts/polyfill-test.ts",
     "test:auth": "tsx scripts/auth-test.ts",
+    "test:packets": "tsx scripts/spawn-packets-test.ts",
     "test:smoke": "tsx scripts/smoke-test.ts",
     "verify:hashes": "tsx scripts/verify-hashes.ts"
   },

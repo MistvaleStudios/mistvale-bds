@@ -3,6 +3,7 @@ import {
   AbilityLayer,
   AbilityLayerType,
   AbilitySet,
+  Color,
   CommandPermissionLevel,
   CreativeContentPacket,
   Gamemode,
@@ -134,14 +135,26 @@ class Player {
     if (this.spawned) return;
     this.spawned = true;
 
+    // Everyone already in the realm must appear in this player's list
+    const existing = [...this.realm.players].map((player) =>
+      player.createPlayerListAddPacket()
+    );
+
     this.realm.addPlayer(this);
 
     // Tell the client what it is allowed to do and how it should move
     this.sendImmediate(
-      this.createPlayerListPacket(PlayerListAction.Add),
+      this.createPlayerListAddPacket(),
+      ...existing,
       this.createAbilitiesPacket(),
       this.createGamemodePacket()
     );
+
+    // And this player must appear in everyone else's list
+    const arrival = this.createPlayerListAddPacket();
+    for (const player of this.realm.players) {
+      if (player !== this) player.send(arrival);
+    }
 
     // Hand over the registry payloads the client needs to render the world
     this.sendImmediate(
@@ -202,27 +215,39 @@ class Player {
     this.send(this.createGamemodePacket(), this.createAbilitiesPacket());
   }
 
-  // Builds the player list entry describing this player
-  public createPlayerListPacket(action: PlayerListAction): PlayerListPacket {
+  // Builds the packet adding this player to another client's player list
+  public createPlayerListAddPacket(): PlayerListPacket {
     const packet = new PlayerListPacket();
-    packet.action = action;
+    packet.action = PlayerListAction.Add;
 
-    // A removal only needs the uuid, so the remaining fields stay null
+    // Every field of an add record is written unconditionally, so none of
+    // them may be left null, including the locator bar colour
     packet.records = [
       new PlayerListRecord(
         this.identity.uuid,
-        action === PlayerListAction.Add ? this.uniqueId : null,
-        action === PlayerListAction.Add ? this.username : null,
-        action === PlayerListAction.Add ? this.identity.xuid : null,
-        action === PlayerListAction.Add ? String() : null,
-        action === PlayerListAction.Add ? this.identity.device.os : null,
-        action === PlayerListAction.Add ? this.identity.skin : null,
-        action === PlayerListAction.Add ? false : null,
-        action === PlayerListAction.Add ? false : null,
-        action === PlayerListAction.Add ? false : null,
-        null
+        this.uniqueId,
+        this.username,
+        this.identity.xuid,
+        String(),
+        this.identity.device.os,
+        this.identity.skin,
+        false,
+        false,
+        false,
+        new Color(0, 0, 0, 0)
       )
     ];
+
+    return packet;
+  }
+
+  // Builds the packet removing this player from another client's player list
+  public createPlayerListRemovePacket(): PlayerListPacket {
+    const packet = new PlayerListPacket();
+    packet.action = PlayerListAction.Remove;
+
+    // A removal only writes the uuid, so the remaining fields are left unset
+    packet.records = [new PlayerListRecord(this.identity.uuid)];
 
     return packet;
   }
