@@ -1,3 +1,6 @@
+// Must come first, so the base64 helpers exist before authentication runs
+import "./core/polyfill";
+
 import { PlayerListAction } from "@serenityjs/protocol";
 
 import { Logger, LogLevel } from "./core/logger";

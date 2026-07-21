@@ -31,8 +31,15 @@ The server writes a `server.json` on its first run. Set `onlineMode` to `false` 
 | `npm run dev` | Same, but restarts on source changes |
 | `npm run build` | Builds the vendored packages, then compiles `src/` and `app/` |
 | `npm run typecheck` | Type checks without emitting |
-| `npm run smoke` | Runs the registry, chunk and transport checks |
+| `npm test` | Runs every check below |
+| `npm run test:polyfill` | Checks the `Uint8Array` base64 and hex polyfill |
+| `npm run test:auth` | Checks the authentication library paths login depends on |
+| `npm run test:smoke` | Checks the registries, chunk round trip and RakNet transport |
 | `npm run verify:hashes` | Recomputes every vanilla block state hash against the data set |
+
+### A note on Node versions
+
+`Uint8Array.fromBase64` and friends are a TC39 proposal that only ships natively in **Node 25**, and the authentication library depends on them. Rather than requiring a bleeding edge runtime, `src/core/polyfill.ts` installs a spec-shaped implementation when the runtime lacks it, so Node 22 and up both work. The polyfill validates its input rather than deferring to `Buffer`'s lenient decoders, which would otherwise let a malformed token through. On Node 25 the native methods are left untouched.
 
 ## Repository Layout
 

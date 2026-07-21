@@ -3,7 +3,7 @@
     "target": "ES2022",
     "lib": ["ES2023"],
     "module": "CommonJS",
-    "moduleResolution": "Node",
+    "moduleResolution": "Node10",
     "outDir": "dist",
     "rootDir": ".",
     "strict": true,
@@ -24,6 +24,11 @@
       "@mistvale/server/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts", "app/**/*.ts", "scripts/**/*.ts"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "app/**/*.ts",
+    "scripts/**/*.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }
