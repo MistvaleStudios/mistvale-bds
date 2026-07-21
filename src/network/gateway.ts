@@ -65,15 +65,23 @@ class Gateway {
     this.raknet.on("encapsulated", (connection, ...buffers) =>
       this.onEncapsulated(connection, ...buffers)
     );
+
+    // The bind is asynchronous, so only announce once it actually succeeds
+    this.raknet.socket.on("listening", () => {
+      this.logger.info(
+        `Listening on §u${this.server.config.host}§8:§u${this.server.config.port}§r for Minecraft §u${MINECRAFT_VERSION}§r clients.`
+      );
+
+      this.server.onGatewayReady();
+    });
+
+    // Without this the socket emits an unhandled error and kills the process
+    this.raknet.socket.on("error", (error) => this.onSocketError(error));
   }
 
   // Binds the socket and begins accepting connections
   public start(): void {
     this.raknet.start();
-
-    this.logger.info(
-      `Listening on §u${this.server.config.host}§8:§u${this.server.config.port}§r for Minecraft §u${MINECRAFT_VERSION}§r clients.`
-    );
   }
 
   // Stops accepting connections and closes the socket
@@ -84,6 +92,27 @@ class Gateway {
   // Returns the session bound to the given connection, if one exists
   public getSession(connection: Connection): Session | null {
     return this.sessions.get(connection) ?? null;
+  }
+
+  // Reports a socket level failure, translating the common ones into advice
+  private onSocketError(error: NodeJS.ErrnoException): void {
+    const { host, port } = this.server.config;
+
+    // A busy port is nearly always another server that is still running
+    if (error.code === "EADDRINUSE") {
+      this.logger.error(
+        `Port §u${port}§r is already in use. Another server is still bound to it; stop it, or set a different §uport§r in the config.`
+      );
+    } else if (error.code === "EACCES") {
+      this.logger.error(
+        `Not permitted to bind §u${host}§8:§u${port}§r. Try a port above 1024, or run with the rights to bind this one.`
+      );
+    } else {
+      this.logger.error(`Socket error on §u${host}§8:§u${port}§r:`, error);
+    }
+
+    // The transport is unusable, so hand the failure up to the server
+    this.server.onGatewayFailure(error);
   }
 
   // Opens a session when a new RakNet connection is established

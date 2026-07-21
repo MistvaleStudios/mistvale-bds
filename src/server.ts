@@ -37,6 +37,12 @@ class MistvaleServer {
   // Whether the simulation loop is currently running
   public running = false;
 
+  // The exit code the entry point should use, set when startup fails
+  public exitCode = 0;
+
+  // Called when the server can no longer run, so the caller can react
+  public onFatal: ((error: Error) => void) | null = null;
+
   // The handle for the simulation loop, held so it can be cleared on stop
   private ticker: NodeJS.Timeout | null = null;
 
@@ -68,10 +74,27 @@ class MistvaleServer {
     // Run the simulation at the configured rate
     const interval = Math.max(1, Math.floor(1000 / this.config.tickRate));
     this.ticker = setInterval(() => this.tick(), interval);
+  }
+
+  // Announces readiness once the transport has actually bound its socket
+  public onGatewayReady(): void {
+    const { x, y, z } = this.level.overworld.spawn;
 
     this.logger.info(
-      `Ready. Spawn is §7${Math.floor(this.level.overworld.spawn.x)}, ${Math.floor(this.level.overworld.spawn.y)}, ${Math.floor(this.level.overworld.spawn.z)}§r.`
+      `Ready. Spawn is §7${Math.floor(x)}, ${Math.floor(y)}, ${Math.floor(z)}§r.`
     );
+  }
+
+  // Shuts the server down after the transport failed unrecoverably
+  public onGatewayFailure(error: NodeJS.ErrnoException): void {
+    // The gateway has already explained the failure, so do not repeat it
+    this.exitCode = 1;
+
+    // Nothing can be served without a socket, so wind the rest down
+    this.stop("The server failed to start.");
+
+    // Let the entry point decide how to exit, rather than killing the process
+    this.onFatal?.(error);
   }
 
   // Disconnects every player and shuts the server down
