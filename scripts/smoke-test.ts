@@ -1,6 +1,6 @@
 import { createSocket } from "node:dgram";
 
-import { DimensionType } from "@serenityjs/protocol";
+import { DimensionType, Packet } from "@serenityjs/protocol";
 
 import { MistvaleServer } from "../src/server";
 import { Chunk } from "../src/level/chunk";
@@ -168,6 +168,28 @@ function testGeneration(server: MistvaleServer): void {
   );
 }
 
+// Verifies every packet the join and play loop relies on has a listener
+function testListeners(server: MistvaleServer): void {
+  console.log("\npacket listeners");
+
+  // A listener that exists but was never added to LISTENERS silently does
+  // nothing, which looks identical to the feature not being implemented
+  const required: Array<[string, Packet]> = [
+    ["RequestNetworkSettings", Packet.RequestNetworkSettings],
+    ["Login", Packet.Login],
+    ["ResourcePackClientResponse", Packet.ResourcePackClientResponse],
+    ["RequestChunkRadius", Packet.RequestChunkRadius],
+    ["SetLocalPlayerAsInitialized", Packet.SetLocalPlayerAsInitialized],
+    ["PlayerAuthInput", Packet.PlayerAuthInput],
+    ["Animate", Packet.Animate],
+    ["Disconnect", Packet.Disconnect]
+  ];
+
+  for (const [name, packet] of required) {
+    check(`${name} has a listener`, server.gateway.dispatcher.handles(packet));
+  }
+}
+
 // Verifies the server answers a RakNet unconnected ping over a real socket
 function testRaknetPing(server: MistvaleServer): Promise<void> {
   console.log("\nraknet transport");
@@ -223,6 +245,7 @@ async function main(): Promise<void> {
   });
 
   testGeneration(server);
+  testListeners(server);
 
   server.start();
   await testRaknetPing(server);

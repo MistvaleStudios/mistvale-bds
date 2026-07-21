@@ -138,6 +138,13 @@ class Player {
       .setFloat(ActorDataId.BoundingBoxWidth, PLAYER_WIDTH)
       .setFloat(ActorDataId.BoundingBoxHeight, PLAYER_HEIGHT)
       .setString(ActorDataId.Name, identity.username);
+
+    // Player nametags stay visible rather than only showing on look. The
+    // client gates this on both a flag pair and a byte field, so set all three
+    this.metadata
+      .setFlag(ActorFlag.CanShowName)
+      .setFlag(ActorFlag.AlwaysShowName)
+      .setByte(ActorDataId.NametagAlwaysShow, 1);
   }
 
   // The display name shown to other players

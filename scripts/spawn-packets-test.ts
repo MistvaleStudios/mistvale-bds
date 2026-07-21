@@ -220,6 +220,18 @@ check(
   items.some((item) => item.identifier === ActorDataId.Name)
 );
 
+console.log("\nnametag visibility");
+
+// The client gates always-on nametags behind both flags and a byte field,
+// so all three have to be present or the tag only shows on look
+check("can show name flag is packed", hasFlag(ActorFlag.CanShowName));
+check("always show name flag is packed", hasFlag(ActorFlag.AlwaysShowName));
+
+const nametag = items.find(
+  (item) => item.identifier === ActorDataId.NametagAlwaysShow
+);
+check("nametag always show byte is set", nametag?.value === 1, `${nametag?.value}`);
+
 // Flags at or above sixty four belong in the second reserved field
 player.metadata.setFlag(70 as ActorFlag);
 const wide = player.metadata.toDataItems();

@@ -1,3 +1,4 @@
+import { AnimateListener } from "./animate";
 import { ChunkRadiusListener } from "./chunk-radius";
 import { DisconnectListener } from "./disconnect";
 import { LoginListener } from "./login";
@@ -16,11 +17,13 @@ const LISTENERS: Array<PacketListenerClass> = [
   ChunkRadiusListener,
   PlayerInitializedListener,
   PlayerInputListener,
+  AnimateListener,
   DisconnectListener
 ];
 
 export {
   LISTENERS,
+  AnimateListener,
   ChunkRadiusListener,
   DisconnectListener,
   LoginListener,
