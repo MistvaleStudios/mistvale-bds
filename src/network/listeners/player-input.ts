@@ -51,9 +51,9 @@ class PlayerInputListener extends PacketListener {
       packet.inputData.hasFlag(InputData.VerticalCollision) &&
       !packet.inputData.hasFlag(InputData.Jumping);
 
-    // The client announces both flight transitions, so track them directly
-    if (packet.inputData.hasFlag(InputData.StartFlying)) player.flying = true;
-    if (packet.inputData.hasFlag(InputData.StopFlying)) player.flying = false;
+    // Flight has to be applied before the pose, since it suppresses crouching
+    if (packet.inputData.hasFlag(InputData.StartFlying)) player.setFlying(true);
+    if (packet.inputData.hasFlag(InputData.StopFlying)) player.setFlying(false);
 
     this.updateSneaking(packet, player);
 
@@ -67,21 +67,23 @@ class PlayerInputListener extends PacketListener {
     }
   }
 
-  // Tracks the sneaking pose, which other clients need to render the crouch
+  // Tracks whether the sneak input is held. Whether that becomes a visible
+  // crouch is decided by the player, since flying suppresses the pose.
   private updateSneaking(packet: PlayerAuthInputPacket, player: Player): void {
     // On the ground the client announces the transition explicitly
     if (packet.inputData.hasFlag(InputData.StartSneaking)) {
-      return player.setSneaking(true);
+      return player.setSneakInput(true);
     }
 
     if (packet.inputData.hasFlag(InputData.StopSneaking)) {
-      return player.setSneaking(false);
+      return player.setSneakInput(false);
     }
 
     // While flying those actions are never sent, so the per-tick flag is the
-    // only signal available and the state has to be derived from it instead
+    // only signal available. It flickers between ticks, which is why it must
+    // not drive the pose directly.
     if (player.isFlying()) {
-      player.setSneaking(packet.inputData.hasFlag(InputData.Sneaking));
+      player.setSneakInput(packet.inputData.hasFlag(InputData.Sneaking));
     }
   }
 }

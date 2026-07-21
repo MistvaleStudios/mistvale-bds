@@ -100,7 +100,10 @@ class Player {
   public onGround = true;
 
   // Whether the player is currently flying
-  public flying = false;
+  private flying = false;
+
+  // Whether the sneak input is held, which is not the same as the crouch pose
+  private sneakInput = false;
 
   // The most recent input tick reported by the client
   public inputTick = 0n;
@@ -438,8 +441,42 @@ class Player {
   }
 
   // Applies a sneaking state, resizing the collision box to match the pose
-  public setSneaking(sneaking: boolean): void {
-    // The client sends its input every tick, so ignore unchanged states
+  public setSneakInput(holding: boolean): void {
+    this.sneakInput = holding;
+
+    this.refreshPose();
+  }
+
+  // Records whether the player is flying, which suppresses the crouch pose
+  public setFlying(flying: boolean): void {
+    this.flying = flying;
+
+    this.refreshPose();
+  }
+
+  // Whether other clients are currently rendering this player crouched
+  public isSneaking(): boolean {
+    return this.metadata.getFlag(ActorFlag.Sneaking);
+  }
+
+  // Whether the sneak input is held, regardless of what is being rendered
+  public isHoldingSneak(): boolean {
+    return this.sneakInput;
+  }
+
+  // Whether this player is currently flying
+  public isFlying(): boolean {
+    return this.flying;
+  }
+
+  // Applies the pose the current inputs imply, broadcasting only on a change
+  private refreshPose(): void {
+    // Holding sneak while flying means descend, not crouch, so the model
+    // keeps standing. Without this the pose follows a flag that flickers
+    // mid air, and other clients see the crouch animation repeat.
+    const sneaking = this.sneakInput && !this.flying;
+
+    // Input arrives every tick, so an unchanged pose must not be broadcast
     if (this.metadata.getFlag(ActorFlag.Sneaking) === sneaking) return;
 
     this.metadata.setFlag(ActorFlag.Sneaking, sneaking);
@@ -452,16 +489,6 @@ class Player {
 
     // Everyone, including this client, needs the new pose
     this.realm.broadcast(this.createActorDataPacket());
-  }
-
-  // Whether this player is currently sneaking
-  public isSneaking(): boolean {
-    return this.metadata.getFlag(ActorFlag.Sneaking);
-  }
-
-  // Whether this player is currently flying
-  public isFlying(): boolean {
-    return this.flying;
   }
 
   // Builds the packet describing this player's current metadata

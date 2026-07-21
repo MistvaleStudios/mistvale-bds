@@ -171,29 +171,59 @@ check(
 
 console.log("\nsneaking");
 
+// Reads the collision box height currently in the player's metadata
+function boxHeight(): number | undefined {
+  return player.metadata
+    .toDataItems()
+    .find((item) => item.identifier === ActorDataId.BoundingBoxHeight)
+    ?.value as number | undefined;
+}
+
 check("player starts standing", !player.isSneaking());
 
-player.setSneaking(true);
-check("sneaking sets the flag", player.isSneaking());
+player.setSneakInput(true);
+check("sneaking on the ground crouches", player.isSneaking());
+check("sneaking shrinks the collision box", boxHeight() === 1.5, `${boxHeight()}`);
 
-const crouched = player.metadata
-  .toDataItems()
-  .find((item) => item.identifier === ActorDataId.BoundingBoxHeight);
+player.setSneakInput(false);
+check("releasing sneak stands back up", !player.isSneaking());
+check("standing restores the collision box", boxHeight() === 1.8, `${boxHeight()}`);
+
+console.log("\nsneaking while flying");
+
+// Holding sneak while flying means descend, so the model must keep standing
+player.setFlying(true);
+player.setSneakInput(true);
+
+check("flying suppresses the crouch pose", !player.isSneaking());
+check("the sneak input is still tracked", player.isHoldingSneak());
+check("the collision box stays full height", boxHeight() === 1.8, `${boxHeight()}`);
+
+// The per-tick sneak flag flickers mid air. Every flip used to flip the pose
+// and broadcast, which is what spammed the crouch animation on other clients.
+let poseChanges = 0;
+let previous = player.isSneaking();
+
+for (let tick = 0; tick < 20; tick++) {
+  player.setSneakInput(tick % 2 === 0);
+
+  if (player.isSneaking() !== previous) poseChanges++;
+  previous = player.isSneaking();
+}
+
 check(
-  "sneaking shrinks the collision box",
-  crouched?.value === 1.5,
-  `${crouched?.value}`
+  "a flickering sneak input never changes the pose while flying",
+  poseChanges === 0,
+  `${poseChanges} changes`
 );
 
-player.setSneaking(false);
-const standing = player.metadata
-  .toDataItems()
-  .find((item) => item.identifier === ActorDataId.BoundingBoxHeight);
-check(
-  "standing restores the collision box",
-  standing?.value === 1.8,
-  `${standing?.value}`
-);
+// Landing while still holding sneak should crouch
+player.setSneakInput(true);
+player.setFlying(false);
+check("landing while holding sneak crouches", player.isSneaking());
+
+player.setSneakInput(false);
+check("player ends standing", !player.isSneaking());
 
 console.log("\nmetadata");
 
