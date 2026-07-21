@@ -90,6 +90,9 @@ class Player {
   // The stack held on the mouse while rearranging the inventory
   public cursor: ItemStack | null = null;
 
+  // The slot a creative pick is staged in before it reaches the cursor
+  public creativeOutput: ItemStack | null = null;
+
   // The realm this player currently occupies
   public realm: Realm;
 

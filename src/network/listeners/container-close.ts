@@ -12,8 +12,10 @@ class ContainerCloseListener extends PacketListener {
     const player = session.player;
     if (!player) return;
 
-    // Anything the player was holding on the cursor goes back to the world
+    // Anything staged on the cursor or in the creative slot is dropped, so a
+    // reopened inventory does not start holding a stale stack
     player.cursor = null;
+    player.creativeOutput = null;
 
     // The client waits for the server to acknowledge the close, otherwise
     // the screen stays open and no further containers can be opened
