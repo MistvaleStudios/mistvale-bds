@@ -7,6 +7,7 @@ import { Player } from "./entity/player";
 import { Level } from "./level/level";
 import { Gateway } from "./network/gateway";
 import { LISTENERS } from "./network/listeners";
+import { CreativeRegistry } from "./registry/creative";
 import { Registries } from "./registry/registries";
 
 // Pull in the built in generators so they are selectable from the config
@@ -58,6 +59,9 @@ class MistvaleServer {
 
     // The registries must exist before any generator resolves a block type
     Registries.load();
+
+    // The creative menu indexes into the item registry, so it loads after
+    CreativeRegistry.load();
 
     this.level = Level.fromConfig(this.config);
     this.gateway = new Gateway(this);

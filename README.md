@@ -13,8 +13,9 @@ Early. What works today:
 - A flat world with terrain streaming to the client
 - The complete vanilla block, block state, item and biome registries
 - Players seeing and moving relative to each other
+- The creative menu, with items picked from it landing in the inventory
 
-Not yet implemented: block interaction, inventories, entities beyond the player, world persistence, commands, encryption and resource packs.
+Not yet implemented: block breaking and placing, entities beyond the player, world persistence, commands, encryption and resource packs.
 
 ## Getting Started
 
@@ -35,6 +36,7 @@ The server writes a `server.json` on its first run. Set `onlineMode` to `false` 
 | `npm test` | Runs every check below |
 | `npm run test:polyfill` | Checks the `Uint8Array` base64 and hex polyfill |
 | `npm run test:auth` | Checks the authentication library paths login depends on |
+| `npm run test:creative` | Checks the creative menu, its index mapping and item stacks |
 | `npm run test:packets` | Serializes every packet the join sequence sends |
 | `npm run test:smoke` | Checks the registries, chunk round trip and RakNet transport |
 | `npm run verify:hashes` | Recomputes every vanilla block state hash against the data set |
@@ -50,8 +52,9 @@ The layout is fixed — new code goes into one of these folders rather than a ne
 ```
 src/            The server software itself
   core/         Logging and configuration
-  registry/     Block, item and biome type registries built from vanilla data
+  registry/     Block, item, biome and creative registries built from vanilla data
   level/        Worlds, dimensions, chunks and terrain generation
+  item/         Item stacks and the containers holding them
   entity/       Players and their per-client state
   network/      Transport, sessions and packet listeners
   server.ts     The MistvaleServer class tying it all together
@@ -77,6 +80,7 @@ Mistvale deliberately uses its own vocabulary rather than mirroring other server
 | `Session` | One connected client, before and after it becomes a player |
 | `Dispatcher` / `PacketListener` | Packet routing, and a handler for one packet id |
 | `ChunkView` | What terrain a given player currently has loaded |
+| `ItemStack` / `Inventory` | A held quantity of an item type, and the slots holding them |
 
 ### Adding a packet listener
 

@@ -10,6 +10,7 @@ import {
 import { MistvaleServer } from "../src/server";
 import { EYE_HEIGHT, Player } from "../src/entity/player";
 import { ResourcePackListener } from "../src/network/listeners/resource-packs";
+import { CreativeRegistry } from "../src/registry/creative";
 import { Registries } from "../src/registry/registries";
 import { Logger, LogLevel } from "../src/core/logger";
 
@@ -109,7 +110,13 @@ serializes("PlayerListPacket (remove)", () =>
 serializes("UpdateAbilitiesPacket", () => player.createAbilitiesPacket());
 serializes("SetPlayerGameTypePacket", () => player.createGamemodePacket());
 serializes("CreativeContentPacket", () =>
-  Player.createCreativeContentPacket()
+  CreativeRegistry.getContentPacket()
+);
+serializes("InventoryContentPacket", () =>
+  player.inventory.createContentPacket()
+);
+serializes("MobEquipmentPacket", () =>
+  player.inventory.createEquipmentPacket()
 );
 
 console.log("\nvisibility and movement packets");

@@ -10,7 +10,6 @@ import {
   AttributeName,
   Color,
   CommandPermissionLevel,
-  CreativeContentPacket,
   Gamemode,
   MoveActorDeltaPacket,
   MoveDeltaFlags,
@@ -31,10 +30,14 @@ import {
   Vector3f
 } from "@serenityjs/protocol";
 
+import { CreativeRegistry } from "../registry/creative";
 import { Registries } from "../registry/registries";
+import { Inventory } from "../item/inventory";
 
 import { ActorMetadata } from "./metadata";
 import { ChunkView } from "./chunk-view";
+
+import type { ItemStack } from "../item/item-stack";
 
 import type { DataPacket } from "@serenityjs/protocol";
 import type { Realm } from "../level/realm";
@@ -81,6 +84,12 @@ class Player {
   // The actor fields and flags other clients render this player from
   public readonly metadata = new ActorMetadata();
 
+  // The items this player is carrying
+  public readonly inventory: Inventory;
+
+  // The stack held on the mouse while rearranging the inventory
+  public cursor: ItemStack | null = null;
+
   // The realm this player currently occupies
   public realm: Realm;
 
@@ -125,6 +134,8 @@ class Player {
     this.uniqueId = uniqueId;
     this.position = new Vector3f(realm.spawn.x, realm.spawn.y, realm.spawn.z);
     this.gamemode = realm.level.defaultGamemode;
+
+    this.inventory = new Inventory(this);
 
     // The client never renders further than it asked for or the realm allows
     this.view = new ChunkView(
@@ -209,7 +220,13 @@ class Player {
     // Hand over the registry payloads the client needs to render the world
     this.sendImmediate(
       Registries.getBiomeDefinitions(),
-      Player.createCreativeContentPacket()
+      CreativeRegistry.getContentPacket()
+    );
+
+    // Followed by whatever this player is already carrying
+    this.sendImmediate(
+      this.inventory.createContentPacket(),
+      this.inventory.createEquipmentPacket()
     );
 
     // Then everyone already in the world
@@ -532,14 +549,6 @@ class Player {
     return packet;
   }
 
-  // Builds an empty creative menu, which the client requires to be present
-  public static createCreativeContentPacket(): CreativeContentPacket {
-    const packet = new CreativeContentPacket();
-    packet.groups = [];
-    packet.items = [];
-
-    return packet;
-  }
 }
 
 export { Player, Rotation, EYE_HEIGHT };
