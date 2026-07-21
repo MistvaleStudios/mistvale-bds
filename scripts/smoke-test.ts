@@ -182,8 +182,10 @@ function testListeners(server: MistvaleServer): void {
     ["SetLocalPlayerAsInitialized", Packet.SetLocalPlayerAsInitialized],
     ["PlayerAuthInput", Packet.PlayerAuthInput],
     ["Animate", Packet.Animate],
+    ["Interact", Packet.Interact],
     ["ItemStackRequest", Packet.ItemStackRequest],
     ["MobEquipment", Packet.MobEquipment],
+    ["ContainerClose", Packet.ContainerClose],
     ["Disconnect", Packet.Disconnect]
   ];
 

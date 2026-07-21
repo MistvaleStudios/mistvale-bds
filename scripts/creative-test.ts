@@ -1,4 +1,5 @@
 import { CREATIVE_CONTENT, CREATIVE_GROUPS } from "@serenityjs/data";
+import { CreativeContentPacket } from "@serenityjs/protocol";
 
 import { CreativeRegistry } from "../src/registry/creative";
 import { Registries } from "../src/registry/registries";
@@ -40,6 +41,25 @@ check(
   `${packet.items.length}`
 );
 check("content packet serializes", packet.serialize().byteLength > 0);
+
+// A packet the client cannot parse is indistinguishable from one it ignores,
+// so read our own output back with the protocol's own reader
+try {
+  const decoded = new CreativeContentPacket(packet.serialize()).deserialize();
+
+  check(
+    "content packet round trips",
+    decoded.groups.length === packet.groups.length &&
+      decoded.items.length === packet.items.length,
+    `${decoded.groups.length} groups, ${decoded.items.length} items`
+  );
+  check(
+    "the first item survives the round trip",
+    decoded.items[0]?.itemInstance.network === packet.items[0]?.itemInstance.network
+  );
+} catch (error) {
+  check("content packet round trips", false, (error as Error).message);
+}
 
 console.log("\ncreative index mapping");
 

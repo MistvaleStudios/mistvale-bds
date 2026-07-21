@@ -1,6 +1,8 @@
 import { AnimateListener } from "./animate";
 import { ChunkRadiusListener } from "./chunk-radius";
+import { ContainerCloseListener } from "./container-close";
 import { DisconnectListener } from "./disconnect";
+import { InteractListener } from "./interact";
 import { ItemStackRequestListener } from "./item-stack-request";
 import { LoginListener } from "./login";
 import { MobEquipmentListener } from "./mob-equipment";
@@ -20,8 +22,10 @@ const LISTENERS: Array<PacketListenerClass> = [
   PlayerInitializedListener,
   PlayerInputListener,
   AnimateListener,
+  InteractListener,
   ItemStackRequestListener,
   MobEquipmentListener,
+  ContainerCloseListener,
   DisconnectListener
 ];
 
@@ -29,6 +33,8 @@ export {
   LISTENERS,
   AnimateListener,
   ChunkRadiusListener,
+  ContainerCloseListener,
+  InteractListener,
   ItemStackRequestListener,
   MobEquipmentListener,
   DisconnectListener,

@@ -118,6 +118,51 @@ serializes("InventoryContentPacket", () =>
 serializes("MobEquipmentPacket", () =>
   player.inventory.createEquipmentPacket()
 );
+serializes("InventorySlotPacket", () => player.inventory.createSlotPacket(0));
+
+console.log("\ninventory open and close");
+
+// The client asks the server to open its own inventory and waits for the
+// response, so nothing here may be skipped or the screen never appears
+const sent: Array<string> = [];
+const recorder = {
+  send: (...packets: Array<DataPacket>) => {
+    for (const packet of packets) sent.push(packet.constructor.name);
+  },
+  sendImmediate: () => {}
+} as unknown as Session;
+
+const opener = new Player(
+  recorder,
+  createIdentity("Opener"),
+  server.level.overworld,
+  3n,
+  3n
+);
+
+opener.inventory.open();
+
+check(
+  "opening sends the container open packet",
+  sent.includes("ContainerOpenPacket2") || sent.includes("ContainerOpenPacket"),
+  sent.join(", ")
+);
+check(
+  "opening sends the contents",
+  sent.some((name) => name.startsWith("InventoryContentPacket")),
+  sent.join(", ")
+);
+check("opening marks the inventory open", opener.inventory.opened);
+
+sent.length = 0;
+opener.inventory.close();
+
+check(
+  "closing acknowledges the client",
+  sent.some((name) => name.startsWith("ContainerClosePacket")),
+  sent.join(", ")
+);
+check("closing marks the inventory closed", !opener.inventory.opened);
 
 console.log("\nvisibility and movement packets");
 

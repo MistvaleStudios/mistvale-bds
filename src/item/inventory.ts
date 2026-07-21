@@ -1,6 +1,10 @@
 import {
+  BlockPosition,
+  ContainerClosePacket,
   ContainerId,
   ContainerName,
+  ContainerOpenPacket,
+  ContainerType,
   FullContainerName,
   InventoryContentPacket,
   InventorySlotPacket,
@@ -26,6 +30,9 @@ class Inventory {
 
   // The hotbar slot the player currently has selected
   public selectedSlot = 0;
+
+  // Whether the client currently has this inventory open
+  public opened = false;
 
   public constructor(player: Player, size = INVENTORY_SIZE) {
     this.player = player;
@@ -101,6 +108,35 @@ class Inventory {
     packet.item = stack ? stack.toNetworkDescriptor() : ItemStack.empty();
 
     return packet;
+  }
+
+  // Opens this inventory on the owning client, which the client asks for
+  // rather than opening by itself once the server owns the inventory
+  public open(): void {
+    const packet = new ContainerOpenPacket();
+
+    // A player's own inventory always uses the reserved identifier and type
+    packet.identifier = ContainerId.Inventory;
+    packet.type = ContainerType.Inventory;
+    packet.position = BlockPosition.fromVector3f(this.player.position);
+    packet.uniqueId = this.player.uniqueId;
+
+    this.opened = true;
+
+    // The contents follow the open, so the client renders the slots filled
+    this.player.send(packet, this.createContentPacket());
+  }
+
+  // Acknowledges the client closing this inventory
+  public close(serverInitiated = false): void {
+    const packet = new ContainerClosePacket();
+    packet.identifier = ContainerId.Inventory;
+    packet.type = ContainerType.Inventory;
+    packet.serverInitiated = serverInitiated;
+
+    this.opened = false;
+
+    this.player.send(packet);
   }
 
   // Builds the packet telling other clients what this player is holding
