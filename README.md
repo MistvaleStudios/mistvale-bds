@@ -14,8 +14,9 @@ Early. What works today:
 - The complete vanilla block, block state, item and biome registries
 - Players seeing and moving relative to each other
 - The creative menu, with items picked from it landing in the inventory
+- Placing and breaking blocks
 
-Not yet implemented: block breaking and placing, entities beyond the player, world persistence, commands, encryption and resource packs.
+Not yet implemented: block behaviour beyond a static state (redstone, gravity, growth), entities beyond the player, world persistence, commands, encryption and resource packs.
 
 ## Getting Started
 
@@ -38,6 +39,7 @@ The server writes a `server.json` on its first run. Set `onlineMode` to `false` 
 | `npm run test:auth` | Checks the authentication library paths login depends on |
 | `npm run test:creative` | Checks the creative menu, its index mapping and item stacks |
 | `npm run test:items` | Drives the click sequence that moves an item from the menu to the hotbar |
+| `npm run test:blocks` | Drives placing and breaking blocks against every face |
 | `npm run test:packets` | Serializes every packet the join sequence sends |
 | `npm run test:smoke` | Checks the registries, chunk round trip and RakNet transport |
 | `npm run verify:hashes` | Recomputes every vanilla block state hash against the data set |

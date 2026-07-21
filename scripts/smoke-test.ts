@@ -183,6 +183,8 @@ function testListeners(server: MistvaleServer): void {
     ["PlayerAuthInput", Packet.PlayerAuthInput],
     ["Animate", Packet.Animate],
     ["Interact", Packet.Interact],
+    ["InventoryTransaction", Packet.InventoryTransaction],
+    ["PlayerAction", Packet.PlayerAction],
     ["ItemStackRequest", Packet.ItemStackRequest],
     ["MobEquipment", Packet.MobEquipment],
     ["ContainerClose", Packet.ContainerClose],

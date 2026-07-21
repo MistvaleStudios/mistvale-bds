@@ -1,4 +1,11 @@
-import { ChunkCoords, DimensionType, Vector3f } from "@serenityjs/protocol";
+import {
+  BlockPosition,
+  ChunkCoords,
+  DimensionType,
+  UpdateBlockFlagsType,
+  UpdateBlockPacket,
+  Vector3f
+} from "@serenityjs/protocol";
 
 import { BlockState } from "../registry/block-state";
 
@@ -93,6 +100,44 @@ class Realm {
     layer = 0
   ): void {
     this.getChunk(x >> 4, z >> 4).setState(x & 0xf, y, z & 0xf, state, layer);
+  }
+
+  // Whether a block at the given position can be built over
+  public isReplaceable(x: number, y: number, z: number): boolean {
+    const { properties } = this.getState(x, y, z).type;
+
+    // Air and fluids give way, anything solid does not
+    return properties.air || properties.liquid;
+  }
+
+  // Places a state and tells every client in the realm about it
+  public updateBlock(
+    x: number,
+    y: number,
+    z: number,
+    state: BlockState,
+    layer = 0
+  ): void {
+    this.setState(x, y, z, state, layer);
+
+    const packet = new UpdateBlockPacket();
+    packet.position = new BlockPosition(x, y, z);
+    packet.networkBlockId = state.networkId;
+    packet.layer = layer;
+
+    // Neighbours must be told so fences, redstone and the like re-evaluate
+    packet.flags = UpdateBlockFlagsType.Neighbors | UpdateBlockFlagsType.Network;
+
+    this.broadcast(packet);
+  }
+
+  // Replaces a block with air, telling every client in the realm
+  public destroyBlock(x: number, y: number, z: number): BlockState {
+    const previous = this.getState(x, y, z);
+
+    this.updateBlock(x, y, z, BlockState.air());
+
+    return previous;
   }
 
   // The highest solid block Y at the given absolute X and Z, or the floor
