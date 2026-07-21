@@ -3,16 +3,25 @@ import {
   AbilityLayer,
   AbilityLayerType,
   AbilitySet,
+  ActorDataId,
+  ActorFlag,
+  AddPlayerPacket,
   Color,
   CommandPermissionLevel,
   CreativeContentPacket,
   Gamemode,
+  MoveActorDeltaPacket,
+  MoveDeltaFlags,
   MovePlayerPacket,
   MoveMode,
+  NetworkItemStackDescriptor,
   PermissionLevel,
   PlayerListAction,
   PlayerListPacket,
   PlayerListRecord,
+  PropertySyncData,
+  RemoveEntityPacket,
+  SetActorDataPacket,
   SetPlayerGameTypePacket,
   TeleportCause,
   UpdateAbilitiesPacket,
@@ -21,6 +30,7 @@ import {
 
 import { Registries } from "../registry/registries";
 
+import { ActorMetadata } from "./metadata";
 import { ChunkView } from "./chunk-view";
 
 import type { DataPacket } from "@serenityjs/protocol";
@@ -38,6 +48,10 @@ interface Rotation {
 // How far above a player's feet their eyes sit
 const EYE_HEIGHT = 1.62;
 
+// The collision box a standing player occupies
+const PLAYER_WIDTH = 0.6;
+const PLAYER_HEIGHT = 1.8;
+
 class Player {
   // The session this player communicates over
   public readonly session: Session;
@@ -53,6 +67,9 @@ class Player {
 
   // The chunk streaming state for this player
   public readonly view: ChunkView;
+
+  // The actor fields and flags other clients render this player from
+  public readonly metadata = new ActorMetadata();
 
   // The realm this player currently occupies
   public realm: Realm;
@@ -98,6 +115,16 @@ class Player {
       this,
       Math.min(realm.properties.viewDistance, identity.device.maxViewDistance)
     );
+
+    // Without these the model renders wrong or falls through the world
+    this.metadata
+      .setFlag(ActorFlag.Breathing)
+      .setFlag(ActorFlag.HasCollision)
+      .setFlag(ActorFlag.HasGravity)
+      .setFlag(ActorFlag.CanClimb)
+      .setFloat(ActorDataId.BoundingBoxWidth, PLAYER_WIDTH)
+      .setFloat(ActorDataId.BoundingBoxHeight, PLAYER_HEIGHT)
+      .setString(ActorDataId.Name, identity.username);
   }
 
   // The display name shown to other players
@@ -135,31 +162,40 @@ class Player {
     if (this.spawned) return;
     this.spawned = true;
 
-    // Everyone already in the realm must appear in this player's list
-    const existing = [...this.realm.players].map((player) =>
-      player.createPlayerListAddPacket()
-    );
+    // Everyone already present must be listed and rendered for this client.
+    // Collected before joining the realm so this player is not included.
+    const present: Array<DataPacket> = [];
+    for (const player of this.realm.players) {
+      present.push(player.createPlayerListAddPacket());
+
+      // Only players who have finished spawning have a position worth sending
+      if (player.spawned) present.push(player.createAddPlayerPacket());
+    }
 
     this.realm.addPlayer(this);
 
-    // Tell the client what it is allowed to do and how it should move
+    // Tell the client who it is and what it is allowed to do
     this.sendImmediate(
       this.createPlayerListAddPacket(),
-      ...existing,
+      this.createActorDataPacket(),
       this.createAbilitiesPacket(),
       this.createGamemodePacket()
     );
-
-    // And this player must appear in everyone else's list
-    const arrival = this.createPlayerListAddPacket();
-    for (const player of this.realm.players) {
-      if (player !== this) player.send(arrival);
-    }
 
     // Hand over the registry payloads the client needs to render the world
     this.sendImmediate(
       Registries.getBiomeDefinitions(),
       Player.createCreativeContentPacket()
+    );
+
+    // Then everyone already in the world
+    if (present.length > 0) this.sendImmediate(...present);
+
+    // And announce this player to everyone else
+    this.realm.broadcastExcept(
+      this,
+      this.createPlayerListAddPacket(),
+      this.createAddPlayerPacket()
     );
 
     // Push the terrain surrounding the spawn point before releasing the player
@@ -176,6 +212,9 @@ class Player {
 
     this.realm.removePlayer(this);
     this.view.clear();
+
+    // Everyone still present must stop rendering this player
+    this.realm.broadcast(this.createRemoveEntityPacket());
   }
 
   // Moves the player to a position, correcting the client's prediction
@@ -302,6 +341,85 @@ class Player {
   public createGamemodePacket(): SetPlayerGameTypePacket {
     const packet = new SetPlayerGameTypePacket();
     packet.gamemode = this.gamemode;
+
+    return packet;
+  }
+
+  // Builds the packet that makes this player visible to another client
+  public createAddPlayerPacket(): AddPlayerPacket {
+    const packet = new AddPlayerPacket();
+
+    packet.uuid = this.identity.uuid;
+    packet.username = this.username;
+    packet.runtimeId = this.runtimeId;
+    packet.uniqueEntityId = this.uniqueId;
+    packet.platformChatId = String();
+
+    // Other clients render the model from its feet, unlike the owning client
+    packet.position = new Vector3f(
+      this.position.x,
+      this.position.y,
+      this.position.z
+    );
+    packet.velocity = new Vector3f(0, 0, 0);
+    packet.pitch = this.rotation.pitch;
+    packet.yaw = this.rotation.yaw;
+    packet.headYaw = this.rotation.headYaw;
+
+    // Nothing is held yet, so an empty descriptor stands in
+    packet.heldItem = new NetworkItemStackDescriptor(0);
+    packet.gamemode = this.gamemode;
+    packet.data = this.metadata.toDataItems();
+    packet.properties = new PropertySyncData([], []);
+
+    packet.permissionLevel = this.operator
+      ? PermissionLevel.Operator
+      : PermissionLevel.Member;
+    packet.commandPermission = this.operator
+      ? CommandPermissionLevel.GameDirectors
+      : CommandPermissionLevel.Any;
+    packet.abilities = this.createAbilitiesPacket().abilities;
+    packet.links = [];
+    packet.deviceId = this.identity.device.id;
+    packet.deviceOS = this.identity.device.os;
+
+    return packet;
+  }
+
+  // Builds the packet describing this player's current metadata
+  public createActorDataPacket(): SetActorDataPacket {
+    const packet = new SetActorDataPacket();
+    packet.runtimeEntityId = this.runtimeId;
+    packet.data = this.metadata.toDataItems();
+    packet.properties = new PropertySyncData([], []);
+    packet.inputTick = this.inputTick;
+
+    return packet;
+  }
+
+  // Builds the packet that stops other clients rendering this player
+  public createRemoveEntityPacket(): RemoveEntityPacket {
+    const packet = new RemoveEntityPacket();
+    packet.uniqueEntityId = this.uniqueId;
+
+    return packet;
+  }
+
+  // Builds the packet broadcasting this player's movement to other clients
+  public createMovePacket(): MoveActorDeltaPacket {
+    const packet = new MoveActorDeltaPacket();
+    packet.runtimeId = this.runtimeId;
+
+    // Every component is present, so the client applies the whole transform
+    packet.flags = MoveDeltaFlags.All;
+    if (this.onGround) packet.flags |= MoveDeltaFlags.OnGround;
+
+    packet.x = this.position.x;
+    packet.y = this.position.y;
+    packet.z = this.position.z;
+    packet.pitch = this.rotation.pitch;
+    packet.yaw = this.rotation.yaw;
+    packet.headYaw = this.rotation.headYaw;
 
     return packet;
   }

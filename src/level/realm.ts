@@ -4,6 +4,7 @@ import { BlockState } from "../registry/block-state";
 
 import { Chunk } from "./chunk";
 
+import type { DataPacket } from "@serenityjs/protocol";
 import type { Player } from "../entity/player";
 import type { Level } from "./level";
 import type { TerrainGenerator } from "./generator";
@@ -115,6 +116,21 @@ class Realm {
   // Removes a player from this realm's occupant list
   public removePlayer(player: Player): void {
     this.players.delete(player);
+  }
+
+  // Sends packets to every player in this realm
+  public broadcast(...packets: Array<DataPacket>): void {
+    for (const player of this.players) player.send(...packets);
+  }
+
+  // Sends packets to every player in this realm except the one given
+  public broadcastExcept(
+    exclude: Player,
+    ...packets: Array<DataPacket>
+  ): void {
+    for (const player of this.players) {
+      if (player !== exclude) player.send(...packets);
+    }
   }
 }
 

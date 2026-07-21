@@ -12,6 +12,7 @@ Early. What works today:
 - Xbox Live authentication, plus an optional offline mode
 - A flat world with terrain streaming to the client
 - The complete vanilla block, block state, item and biome registries
+- Players seeing and moving relative to each other
 
 Not yet implemented: block interaction, inventories, entities beyond the player, world persistence, commands, encryption and resource packs.
 

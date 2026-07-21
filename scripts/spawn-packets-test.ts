@@ -1,4 +1,10 @@
-import { DeviceOS, MemoryTier, SerializedSkin } from "@serenityjs/protocol";
+import {
+  ActorDataId,
+  ActorFlag,
+  DeviceOS,
+  MemoryTier,
+  SerializedSkin
+} from "@serenityjs/protocol";
 
 import { MistvaleServer } from "../src/server";
 import { Player } from "../src/entity/player";
@@ -13,6 +19,12 @@ import type { PlayerIdentity } from "../src/entity/identity";
 // Every packet the join sequence sends must serialize. A field left null
 // that the writer dereferences only fails at this point, never at build time.
 const failures: Array<string> = [];
+
+// Records the result of a single named check
+function check(name: string, condition: boolean, detail = ""): void {
+  console.log(`  ${condition ? "pass" : "FAIL"}  ${name}${detail ? ` (${detail})` : ""}`);
+  if (!condition) failures.push(name);
+}
 
 // Serializes a packet and records whether it survived the round trip
 function serializes(name: string, build: () => DataPacket): void {
@@ -99,11 +111,61 @@ serializes("CreativeContentPacket", () =>
   Player.createCreativeContentPacket()
 );
 
+console.log("\nvisibility and movement packets");
+
+serializes("SetActorDataPacket", () => player.createActorDataPacket());
+serializes("AddPlayerPacket", () => player.createAddPlayerPacket());
+serializes("MoveActorDeltaPacket", () => player.createMovePacket());
+serializes("RemoveEntityPacket", () => player.createRemoveEntityPacket());
+
 console.log("\nplayer list across multiple players");
 
 // The add record is what a second player receives when someone joins
 serializes("PlayerListPacket for another player", () =>
   other.createPlayerListAddPacket()
+);
+serializes("AddPlayerPacket for another player", () =>
+  other.createAddPlayerPacket()
+);
+
+console.log("\nmetadata");
+
+// The flags must survive the packing into their reserved long fields
+const items = player.metadata.toDataItems();
+const flagField = items.find((item) => item.identifier === ActorDataId.Reserved0);
+const flags = BigInt((flagField?.value as bigint) ?? 0n);
+
+function hasFlag(flag: ActorFlag): boolean {
+  return (flags & (1n << BigInt(flag % 64))) !== 0n;
+}
+
+check("metadata carries a flag field", flagField !== undefined);
+check("breathing flag is packed", hasFlag(ActorFlag.Breathing));
+check("collision flag is packed", hasFlag(ActorFlag.HasCollision));
+check("gravity flag is packed", hasFlag(ActorFlag.HasGravity));
+check("climb flag is packed", hasFlag(ActorFlag.CanClimb));
+check(
+  "bounding box is present",
+  items.some((item) => item.identifier === ActorDataId.BoundingBoxHeight)
+);
+check(
+  "name is present",
+  items.some((item) => item.identifier === ActorDataId.Name)
+);
+
+// Flags at or above sixty four belong in the second reserved field
+player.metadata.setFlag(70 as ActorFlag);
+const wide = player.metadata.toDataItems();
+check(
+  "high flags land in the second field",
+  wide.some((item) => item.identifier === ActorDataId.Reserved092)
+);
+player.metadata.setFlag(70 as ActorFlag, false);
+check(
+  "clearing a high flag drops the second field",
+  !player.metadata
+    .toDataItems()
+    .some((item) => item.identifier === ActorDataId.Reserved092)
 );
 
 console.log(
