@@ -132,12 +132,17 @@ console.log("\npicking an item out of the creative menu");
 
 // This is the exact sequence the client sends when a creative item is
 // clicked: stage it in the creative output, then take it onto the cursor.
+// The craft carries an amount of one, because that field is a craft count
+// rather than a stack size. The stack size has to come from the item type.
 const entry = CreativeRegistry.getEntry(0)!;
+const maxStack = entry.type.properties.maxStackSize;
+
+check("the test item stacks past one", maxStack === 64, `${maxStack}`);
 
 const response = send(
-  craftCreative(0, 64),
+  craftCreative(0, 1),
   take(
-    64,
+    maxStack,
     slotOf(ContainerName.CreativeOutput, 0),
     slotOf(ContainerName.Cursor, 0)
   )
@@ -156,7 +161,12 @@ check(
   player.cursor?.type.identifier === entry.type.identifier,
   player.cursor?.type.identifier ?? "empty"
 );
-check("the cursor holds the full stack", player.cursor?.amount === 64, `${player.cursor?.amount}`);
+// The whole point of the fix: a creative pick yields a full stack, not one
+check(
+  "the cursor holds a full stack",
+  player.cursor?.amount === maxStack,
+  `${player.cursor?.amount} of ${maxStack}`
+);
 check("the staging slot is emptied", player.creativeOutput === null);
 
 // The client resyncs per container, so both must be described separately
@@ -179,7 +189,7 @@ check(
 console.log("\nplacing the held item into the hotbar");
 
 const placed = send(
-  take(64, slotOf(ContainerName.Cursor, 0), slotOf(ContainerName.Hotbar, 0))
+  take(maxStack, slotOf(ContainerName.Cursor, 0), slotOf(ContainerName.Hotbar, 0))
 );
 
 check(
@@ -192,6 +202,11 @@ check(
   player.inventory.getItem(0)?.type.identifier ?? "empty"
 );
 check("the cursor is emptied", player.cursor === null);
+check(
+  "the hotbar keeps the full amount",
+  player.inventory.getItem(0)?.amount === maxStack,
+  `${player.inventory.getItem(0)?.amount} of ${maxStack}`
+);
 check(
   "the held item is the placed block",
   player.inventory.getHeldItem()?.type.identifier === entry.type.identifier

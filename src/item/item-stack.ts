@@ -44,9 +44,10 @@ class ItemStack {
     return this.amount <= 0 || this.type.identifier === "minecraft:air";
   }
 
-  // The most this stack may hold
+  // The most this stack may hold. Data gaps would otherwise produce a zero
+  // sized stack, which reads as empty and vanishes the moment it is stored.
   public get maxAmount(): number {
-    return this.type.properties.maxStackSize;
+    return Math.max(1, this.type.properties.maxStackSize);
   }
 
   // Whether two stacks hold the same thing and could be merged
@@ -92,11 +93,16 @@ class ItemStack {
   }
 
   // Builds a stack from an entry the player picked out of the creative menu
-  public static fromCreative(entry: CreativeEntry, amount: number): ItemStack {
-    return new ItemStack(entry.type, {
-      amount,
+  public static fromCreative(entry: CreativeEntry, amount?: number): ItemStack {
+    const stack = new ItemStack(entry.type, {
+      amount: amount ?? entry.type.properties.maxStackSize,
       metadata: entry.descriptor.metadata ?? 0
     });
+
+    // Never hand out more than the item is allowed to stack to
+    stack.amount = Math.max(1, Math.min(stack.amount, stack.maxAmount));
+
+    return stack;
   }
 }
 

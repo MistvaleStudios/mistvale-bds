@@ -146,13 +146,12 @@ class ItemStackRequestListener extends PacketListener {
       return false;
     }
 
-    // The client may ask for more than the item is allowed to stack to
-    const stack = ItemStack.fromCreative(
-      entry,
-      request.amount || entry.descriptor.stackSize || 1
-    );
-    stack.amount = Math.min(stack.amount, stack.maxAmount);
+    // Picking from the menu yields a full stack, as it does in vanilla. The
+    // amount cannot come from the request, which carries a craft count of one,
+    // nor from the descriptor, which advertises a single item for display.
+    const stack = ItemStack.fromCreative(entry, entry.type.properties.maxStackSize);
 
+    // The take action that follows decides how much actually leaves this slot
     player.creativeOutput = stack;
     this.touch(touched, ContainerName.CreativeOutput, SINGLE_SLOT);
 
