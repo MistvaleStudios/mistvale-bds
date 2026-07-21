@@ -1,0 +1,48 @@
+{
+  "name": "mistvale-bds",
+  "version": "0.1.0",
+  "description": "A Bedrock Dedicated Server software written entirely in TypeScript.",
+  "license": "MIT",
+  "author": "Mistvale Studios",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MistvaleStudios/mistvale-bds.git"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "vendor/*"
+  ],
+  "scripts": {
+    "start": "tsx app/index.ts",
+    "dev": "tsx watch app/index.ts",
+    "build": "npm run build:vendor && tsc -p tsconfig.json",
+    "build:vendor": "npm run build -w @serenityjs/nbt && npm run build -w @serenityjs/raknet && npm run build -w @serenityjs/protocol && npm run build -w @serenityjs/data",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "smoke": "tsx scripts/smoke-test.ts",
+    "verify:hashes": "tsx scripts/verify-hashes.ts"
+  },
+  "dependencies": {
+    "@bedrock-apis/carolina-authentication": "1.0.0-beta.3",
+    "@serenityjs/binarystream": "^3.1.0",
+    "@serenityjs/data": "*",
+    "@serenityjs/nbt": "*",
+    "@serenityjs/protocol": "*",
+    "@serenityjs/raknet": "*"
+  },
+  "devDependencies": {
+    "@swc/core": "^1.7.42",
+    "@types/node": "^22.15.30",
+    "tsup": "^8.3.5",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "esbuild@0.27.7": true,
+    "@swc/core@1.7.42": true
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@serenityjs/data",
+  "version": "0.8.21",
+  "private": true,
+  "license": "MIT",
+  "description": "Vendored from SerenityJS - vanilla block, item, entity and biome data.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup"
+  }
+}

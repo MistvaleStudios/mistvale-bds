@@ -1,0 +1,16 @@
+{
+  "name": "@serenityjs/nbt",
+  "version": "0.8.21",
+  "private": true,
+  "license": "MIT",
+  "description": "Vendored from SerenityJS - named binary tag reader and writer.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup"
+  },
+  "dependencies": {
+    "@serenityjs/binarystream": "^3.1.0"
+  }
+}
