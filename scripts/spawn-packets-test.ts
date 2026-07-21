@@ -1,13 +1,14 @@
 import {
   ActorDataId,
   ActorFlag,
+  AttributeName,
   DeviceOS,
   MemoryTier,
   SerializedSkin
 } from "@serenityjs/protocol";
 
 import { MistvaleServer } from "../src/server";
-import { Player } from "../src/entity/player";
+import { EYE_HEIGHT, Player } from "../src/entity/player";
 import { ResourcePackListener } from "../src/network/listeners/resource-packs";
 import { Registries } from "../src/registry/registries";
 import { Logger, LogLevel } from "../src/core/logger";
@@ -117,6 +118,7 @@ serializes("SetActorDataPacket", () => player.createActorDataPacket());
 serializes("AddPlayerPacket", () => player.createAddPlayerPacket());
 serializes("MoveActorDeltaPacket", () => player.createMovePacket());
 serializes("RemoveEntityPacket", () => player.createRemoveEntityPacket());
+serializes("UpdateAttributesPacket", () => player.createAttributesPacket());
 
 console.log("\nplayer list across multiple players");
 
@@ -126,6 +128,71 @@ serializes("PlayerListPacket for another player", () =>
 );
 serializes("AddPlayerPacket for another player", () =>
   other.createAddPlayerPacket()
+);
+
+console.log("\nrender offsets");
+
+// Other clients position the model from its collision height. Sending the raw
+// feet position sinks the model into the ground by roughly its own height.
+const move = player.createMovePacket();
+check(
+  "movement broadcast is offset by the collision height",
+  Math.abs(move.y - (player.position.y + EYE_HEIGHT)) < 0.001,
+  `y=${move.y} from feet ${player.position.y}`
+);
+
+// The add packet is the exception, taking the feet position directly
+const add = player.createAddPlayerPacket();
+check(
+  "add packet uses the feet position",
+  Math.abs(add.position.y - player.position.y) < 0.001,
+  `y=${add.position.y}`
+);
+
+console.log("\nattributes");
+
+const attributes = player.createAttributesPacket();
+const movement = attributes.attributes.find(
+  (attribute) => attribute.name === AttributeName.Movement
+);
+
+check("movement attribute is sent", movement !== undefined);
+check(
+  "movement attribute matches the walk speed",
+  movement?.current === 0.1,
+  `${movement?.current}`
+);
+check(
+  "health attribute is sent",
+  attributes.attributes.some(
+    (attribute) => attribute.name === AttributeName.Health
+  )
+);
+
+console.log("\nsneaking");
+
+check("player starts standing", !player.isSneaking());
+
+player.setSneaking(true);
+check("sneaking sets the flag", player.isSneaking());
+
+const crouched = player.metadata
+  .toDataItems()
+  .find((item) => item.identifier === ActorDataId.BoundingBoxHeight);
+check(
+  "sneaking shrinks the collision box",
+  crouched?.value === 1.5,
+  `${crouched?.value}`
+);
+
+player.setSneaking(false);
+const standing = player.metadata
+  .toDataItems()
+  .find((item) => item.identifier === ActorDataId.BoundingBoxHeight);
+check(
+  "standing restores the collision box",
+  standing?.value === 1.8,
+  `${standing?.value}`
 );
 
 console.log("\nmetadata");

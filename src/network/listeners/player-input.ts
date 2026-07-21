@@ -4,6 +4,7 @@ import { EYE_HEIGHT } from "../../entity/player";
 import { PacketListener } from "../listener";
 
 import type { PlayerAuthInputPacket } from "@serenityjs/protocol";
+import type { Player } from "../../entity/player";
 import type { Session } from "../session";
 
 // How far a player must move before the change is worth broadcasting
@@ -50,6 +51,12 @@ class PlayerInputListener extends PacketListener {
       packet.inputData.hasFlag(InputData.VerticalCollision) &&
       !packet.inputData.hasFlag(InputData.Jumping);
 
+    // The client announces both flight transitions, so track them directly
+    if (packet.inputData.hasFlag(InputData.StartFlying)) player.flying = true;
+    if (packet.inputData.hasFlag(InputData.StopFlying)) player.flying = false;
+
+    this.updateSneaking(packet, player);
+
     player.position = position;
     player.rotation = rotation;
     player.inputTick = packet.inputTick;
@@ -57,6 +64,24 @@ class PlayerInputListener extends PacketListener {
     // Only other clients need telling, since this one already moved itself
     if (moved || turned) {
       player.realm.broadcastExcept(player, player.createMovePacket());
+    }
+  }
+
+  // Tracks the sneaking pose, which other clients need to render the crouch
+  private updateSneaking(packet: PlayerAuthInputPacket, player: Player): void {
+    // On the ground the client announces the transition explicitly
+    if (packet.inputData.hasFlag(InputData.StartSneaking)) {
+      return player.setSneaking(true);
+    }
+
+    if (packet.inputData.hasFlag(InputData.StopSneaking)) {
+      return player.setSneaking(false);
+    }
+
+    // While flying those actions are never sent, so the per-tick flag is the
+    // only signal available and the state has to be derived from it instead
+    if (player.isFlying()) {
+      player.setSneaking(packet.inputData.hasFlag(InputData.Sneaking));
     }
   }
 }

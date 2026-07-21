@@ -6,6 +6,8 @@ import {
   ActorDataId,
   ActorFlag,
   AddPlayerPacket,
+  Attribute,
+  AttributeName,
   Color,
   CommandPermissionLevel,
   CreativeContentPacket,
@@ -25,6 +27,7 @@ import {
   SetPlayerGameTypePacket,
   TeleportCause,
   UpdateAbilitiesPacket,
+  UpdateAttributesPacket,
   Vector3f
 } from "@serenityjs/protocol";
 
@@ -45,12 +48,19 @@ interface Rotation {
   headYaw: number;
 }
 
-// How far above a player's feet their eyes sit
+// How far above a player's feet their eyes sit. This doubles as the collision
+// height, which other clients expect movement broadcasts to be offset by.
 const EYE_HEIGHT = 1.62;
 
 // The collision box a standing player occupies
 const PLAYER_WIDTH = 0.6;
 const PLAYER_HEIGHT = 1.8;
+
+// The shorter collision box the client expects while a player is sneaking
+const SNEAKING_HEIGHT = 1.5;
+
+// The base movement speed the client applies when walking
+const WALK_SPEED = 0.1;
 
 class Player {
   // The session this player communicates over
@@ -88,6 +98,9 @@ class Player {
 
   // Whether the player is standing on solid ground
   public onGround = true;
+
+  // Whether the player is currently flying
+  public flying = false;
 
   // The most recent input tick reported by the client
   public inputTick = 0n;
@@ -178,6 +191,7 @@ class Player {
     this.sendImmediate(
       this.createPlayerListAddPacket(),
       this.createActorDataPacket(),
+      this.createAttributesPacket(),
       this.createAbilitiesPacket(),
       this.createGamemodePacket()
     );
@@ -386,6 +400,63 @@ class Player {
     return packet;
   }
 
+  // Builds the packet describing this player's attributes. Without these the
+  // client falls back to its own defaults, which do not match the server's.
+  public createAttributesPacket(): UpdateAttributesPacket {
+    const packet = new UpdateAttributesPacket();
+    packet.runtimeActorId = this.runtimeId;
+    packet.inputTick = this.inputTick;
+
+    // Movement speed drives how fast the client walks, so it must be sent
+    packet.attributes = [
+      new Attribute(
+        0,
+        3.402_823_466e38,
+        WALK_SPEED,
+        0,
+        3.402_823_466e38,
+        WALK_SPEED,
+        AttributeName.Movement,
+        []
+      ),
+      new Attribute(0, 20, 20, 0, 20, 20, AttributeName.Health, []),
+      new Attribute(0, 20, 20, 0, 20, 20, AttributeName.PlayerHunger, []),
+      new Attribute(0, 20, 5, 0, 20, 5, AttributeName.PlayerSaturation, []),
+      new Attribute(0, 5, 0, 0, 5, 0, AttributeName.PlayerExhaustion, []),
+      new Attribute(0, 24_791, 0, 0, 24_791, 0, AttributeName.PlayerLevel, []),
+      new Attribute(0, 1, 0, 0, 1, 0, AttributeName.PlayerExperience, [])
+    ];
+
+    return packet;
+  }
+
+  // Applies a sneaking state, resizing the collision box to match the pose
+  public setSneaking(sneaking: boolean): void {
+    // The client sends its input every tick, so ignore unchanged states
+    if (this.metadata.getFlag(ActorFlag.Sneaking) === sneaking) return;
+
+    this.metadata.setFlag(ActorFlag.Sneaking, sneaking);
+
+    // A sneaking player occupies a shorter box, which lets them fit gaps
+    this.metadata.setFloat(
+      ActorDataId.BoundingBoxHeight,
+      sneaking ? SNEAKING_HEIGHT : PLAYER_HEIGHT
+    );
+
+    // Everyone, including this client, needs the new pose
+    this.realm.broadcast(this.createActorDataPacket());
+  }
+
+  // Whether this player is currently sneaking
+  public isSneaking(): boolean {
+    return this.metadata.getFlag(ActorFlag.Sneaking);
+  }
+
+  // Whether this player is currently flying
+  public isFlying(): boolean {
+    return this.flying;
+  }
+
   // Builds the packet describing this player's current metadata
   public createActorDataPacket(): SetActorDataPacket {
     const packet = new SetActorDataPacket();
@@ -415,7 +486,10 @@ class Player {
     if (this.onGround) packet.flags |= MoveDeltaFlags.OnGround;
 
     packet.x = this.position.x;
-    packet.y = this.position.y;
+
+    // Other clients position the model from its collision height, not its
+    // feet, so sending the raw position sinks the model into the ground
+    packet.y = this.position.y + EYE_HEIGHT;
     packet.z = this.position.z;
     packet.pitch = this.rotation.pitch;
     packet.yaw = this.rotation.yaw;
